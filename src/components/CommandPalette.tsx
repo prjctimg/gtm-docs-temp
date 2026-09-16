@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageTab } from '../types';
 import { BLOG_POSTS, KEYBINDINGS } from '../data/mockData';
-import { Search, FileText, BookOpen, Terminal, Keyboard, ArrowRight, X } from 'lucide-react';
+import { ALL_DOCS } from '../data/docs';
+import { Search, FileText, BookOpen, Terminal, Keyboard, ArrowRight, X, Radio, Disc3 } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate: (tab: PageTab, sectionId?: string) => void;
+  onNavigate: (tab: PageTab, docOrSectionId?: string, sectionId?: string) => void;
   onOpenWhitepaper: (postId: string) => void;
 }
 
@@ -14,6 +15,7 @@ interface SearchItem {
   title: string;
   category: string;
   tab: PageTab;
+  docId?: string;
   sectionId?: string;
   postId?: string;
 }
@@ -47,15 +49,28 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { title: 'Precompiled Musl Static Binaries', category: 'Installation // Binaries', tab: 'install' }
   ];
 
-  const docItems: SearchItem[] = [
-    { title: 'Overview & Design Philosophy', category: 'Documentation', tab: 'docs', sectionId: 'overview' },
-    { title: 'Installation & Package Managers', category: 'Documentation', tab: 'docs', sectionId: 'install' },
-    { title: 'Pipeline Concurrency Architecture', category: 'Documentation', tab: 'docs', sectionId: 'architecture' },
-    { title: 'Quick Configuration (config.toml)', category: 'Documentation', tab: 'docs', sectionId: 'config' },
-    { title: 'Audio Engine Benchmarks (Latency & RSS)', category: 'Documentation', tab: 'docs', sectionId: 'benchmarks' },
-    { title: 'Essential Keybindings & First Playback', category: 'Documentation', tab: 'docs', sectionId: 'keybindings' },
-    { title: 'Audio Drivers (PipeWire / ALSA MMAP)', category: 'Documentation', tab: 'docs', sectionId: 'audio-drivers' }
-  ];
+  // Dynamic Docs from all 20 live MDX content files
+  const docItems: SearchItem[] = [];
+  ALL_DOCS.forEach(doc => {
+    // Top-level document item
+    docItems.push({
+      title: `${doc.title} — ${doc.description || 'Guide'}`,
+      category: `Docs // ${doc.category}`,
+      tab: 'docs',
+      docId: doc.id
+    });
+
+    // Sub-headings inside document
+    doc.headings.forEach(h => {
+      docItems.push({
+        title: `${doc.title} > ${h.text}`,
+        category: `Docs // ${doc.title}`,
+        tab: 'docs',
+        docId: doc.id,
+        sectionId: h.id
+      });
+    });
+  });
 
   const blogItems: SearchItem[] = BLOG_POSTS.map(post => ({
     title: post.title,
@@ -68,14 +83,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     title: `${k.key}: ${k.action} (${k.scope})`,
     category: 'Keybindings',
     tab: 'docs',
+    docId: 'interface',
     sectionId: 'keybindings'
   }));
 
   const allItems: SearchItem[] = [...installItems, ...docItems, ...blogItems, ...keyItems];
 
   const filteredItems = query.trim()
-    ? allItems.filter(item => item.title.toLowerCase().includes(query.toLowerCase()) || item.category.toLowerCase().includes(query.toLowerCase()))
-    : allItems.slice(0, 8);
+    ? allItems.filter(item => 
+        item.title.toLowerCase().includes(query.toLowerCase()) || 
+        item.category.toLowerCase().includes(query.toLowerCase())
+      )
+    : allItems.slice(0, 10);
 
   const handleSelect = (item: SearchItem) => {
     if (item.postId) {
@@ -83,7 +102,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       onOpenWhitepaper(item.postId);
     } else {
       onClose();
-      onNavigate(item.tab, item.sectionId);
+      onNavigate(item.tab, item.docId, item.sectionId);
     }
   };
 
@@ -129,7 +148,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Type a command, doc section, or article..."
+            placeholder="Type a topic, e.g. 'spotify', 'lyrics', 'crossfade', 'eq'..."
             className="w-full bg-transparent border-none text-text-primary text-sm font-mono focus:outline-none placeholder:text-text-disabled"
           />
           {query && (
@@ -149,7 +168,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         <div className="max-h-[380px] overflow-y-auto p-2 divide-y divide-hairline-subtle font-mono text-xs">
           {filteredItems.length === 0 ? (
             <div className="py-8 text-center text-text-muted font-mono">
-              No matching dispatches or doc topics found for "{query}"
+              No matching doc topics or commands found for "{query}"
             </div>
           ) : (
             filteredItems.map((item, idx) => {
@@ -169,7 +188,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     {item.category.includes('Blog') ? (
                       <FileText className="w-3.5 h-3.5 text-primary-container shrink-0" />
                     ) : item.category.includes('Keybinding') ? (
-                      <Keyboard className="w-3.5 h-3.5 text-accent-coral shrink-0" />
+                      <Keyboard className="w-3.5 h-3.5 text-state-warning shrink-0" />
                     ) : (
                       <BookOpen className="w-3.5 h-3.5 text-secondary shrink-0" />
                     )}
@@ -192,7 +211,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Footer info */}
         <div className="px-4 py-2 bg-canvas-obsidian border-t border-hairline-outline flex items-center justify-between text-[11px] font-mono text-text-muted">
           <span>Navigate with [↑][↓], Select with [Enter]</span>
-          <span className="text-secondary">gtm-cli</span>
+          <span className="text-secondary">{ALL_DOCS.length} live docs loaded</span>
         </div>
       </div>
     </div>

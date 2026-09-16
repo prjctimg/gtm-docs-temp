@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { PageTab } from '../types';
-import { Search, Menu, X, ArrowUpRight } from 'lucide-react';
+import { Search, Menu, X, ArrowUpRight, Github } from 'lucide-react';
 
 interface TopNavProps {
   currentTab: PageTab;
   onSelectTab: (tab: PageTab) => void;
   onOpenSearch: () => void;
   onOpenKeymap: () => void;
-  onScrollToInstall: () => void;
+  onScrollToInstall?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -22,11 +22,6 @@ export const TopNav: React.FC<TopNavProps> = ({
   const handleMobileNav = (tab: PageTab) => {
     onSelectTab(tab);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleMobileInstall = () => {
-    setIsMobileMenuOpen(false);
-    onScrollToInstall();
   };
 
   const handleMobileKeymap = () => {
@@ -68,15 +63,6 @@ export const TopNav: React.FC<TopNavProps> = ({
             >
               Install
             </button>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-text-muted hover:text-text-primary transition-colors flex items-center gap-1"
-            >
-              GitHub
-              <ArrowUpRight className="w-3 h-3 text-text-disabled" />
-            </a>
             <button
               onClick={onOpenKeymap}
               className="text-text-muted hover:text-text-primary transition-colors cursor-pointer"
@@ -101,13 +87,17 @@ export const TopNav: React.FC<TopNavProps> = ({
             </kbd>
           </button>
 
-          {/* Desktop Install CTA */}
-          <button
-            onClick={onScrollToInstall}
-            className="hidden sm:inline-flex items-center justify-center bg-primary-container text-on-primary-container font-mono text-xs font-bold px-3.5 py-1.5 rounded hover:opacity-90 active:opacity-80 transition-opacity cursor-pointer min-h-[38px]"
+          {/* GitHub Icon Link */}
+          <a
+            href="https://github.com/prjctimg/gtm.rs"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center p-2 text-text-muted hover:text-text-primary border border-hairline-outline hover:border-text-muted rounded bg-surface-container hover:bg-surface-elevated transition-colors min-h-[38px] min-w-[38px]"
+            title="View on GitHub"
+            aria-label="GitHub Repository"
           >
-            Install
-          </button>
+            <Github className="w-4 h-4" />
+          </a>
 
           {/* Mobile Hamburger Toggle Button */}
           <button
@@ -150,22 +140,17 @@ export const TopNav: React.FC<TopNavProps> = ({
             Keymap Cheatsheet
           </button>
           <a
-            href="https://github.com"
+            href="https://github.com/prjctimg/gtm.rs"
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-between w-full py-2.5 px-3 rounded text-text-muted hover:text-text-primary transition-colors"
           >
-            <span>GitHub Repository</span>
+            <span className="flex items-center gap-2">
+              <Github className="w-4 h-4" />
+              <span>GitHub</span>
+            </span>
             <ArrowUpRight className="w-4 h-4 text-text-disabled" />
           </a>
-          <div className="pt-2 border-t border-hairline-outline">
-            <button
-              onClick={handleMobileInstall}
-              className="w-full bg-primary-container text-on-primary-container font-bold py-2.5 px-4 rounded text-center block cursor-pointer"
-            >
-              Install gtm
-            </button>
-          </div>
         </div>
       )}
     </header>

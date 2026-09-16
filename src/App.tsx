@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageTab, BlogPost } from './types';
 import { BLOG_POSTS } from './data/mockData';
+import { DOCS_BY_ID } from './data/docs';
 import { TopNav } from './components/TopNav';
 import { DocsView } from './components/DocsView';
 import { BlogView } from './components/BlogView';
@@ -13,7 +14,8 @@ import { KeymapModal } from './components/KeymapModal';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<PageTab>('home');
-  const [activeSection, setActiveSection] = useState<string>('overview');
+  const [activeDocId, setActiveDocId] = useState<string>('overview');
+  const [activeSection, setActiveSection] = useState<string | undefined>(undefined);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isKeymapOpen, setIsKeymapOpen] = useState(false);
   const [selectedWhitepaper, setSelectedWhitepaper] = useState<BlogPost | null>(null);
@@ -31,18 +33,33 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleNavigate = (tab: PageTab, sectionId?: string) => {
+  const handleNavigate = (tab: PageTab, docOrSectionId?: string, sectionId?: string) => {
     setCurrentTab(tab);
-    if (sectionId) {
-      setActiveSection(sectionId);
-      setTimeout(() => {
-        const el = document.getElementById(sectionId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth' });
+
+    if (tab === 'docs') {
+      if (docOrSectionId) {
+        if (DOCS_BY_ID[docOrSectionId]) {
+          setActiveDocId(docOrSectionId);
+          setActiveSection(sectionId);
+        } else {
+          // If it's a known anchor or unknown doc, check if any doc has this heading or default to overview
+          setActiveDocId('overview');
+          setActiveSection(docOrSectionId);
         }
-      }, 100);
-    } else {
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      if (docOrSectionId) {
+        setActiveSection(docOrSectionId);
+        setTimeout(() => {
+          const el = document.getElementById(docOrSectionId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
@@ -72,20 +89,25 @@ export default function App() {
           <DocsView
             onOpenSearch={() => setIsSearchOpen(true)}
             onOpenKeymap={() => setIsKeymapOpen(true)}
+            activeDocId={activeDocId}
             activeSection={activeSection}
+            onNavigateDoc={(docId, secId) => {
+              setActiveDocId(docId);
+              setActiveSection(secId);
+            }}
           />
         )}
 
         {currentTab === 'install' && (
           <InstallView
-            onNavigateToDocs={(sectionId) => handleNavigate('docs', sectionId)}
+            onNavigateToDocs={(sectionId) => handleNavigate('docs', 'getting-started', sectionId)}
           />
         )}
 
         {currentTab === 'blog' && (
           <BlogView
             onOpenWhitepaper={(post) => setSelectedWhitepaper(post)}
-            onNavigateToDocs={(sectionId) => handleNavigate('docs', sectionId)}
+            onNavigateToDocs={(sectionId) => handleNavigate('docs', 'overview', sectionId)}
           />
         )}
 
@@ -115,7 +137,7 @@ export default function App() {
       <WhitepaperModal
         post={selectedWhitepaper}
         onClose={() => setSelectedWhitepaper(null)}
-        onNavigateToDocs={(sectionId) => handleNavigate('docs', sectionId)}
+        onNavigateToDocs={(sectionId) => handleNavigate('docs', 'overview', sectionId)}
       />
 
       <KeymapModal

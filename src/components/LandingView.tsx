@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { IMAGES, PACKAGE_COMMANDS, KEYBINDINGS } from '../data/mockData';
 import { PageTab } from '../types';
 import { AnimatedTelemetryBenchmark } from './AnimatedTelemetryBenchmark';
+import { MusicalDoodleBackground } from './MusicalDoodleBackground';
 import { 
   Check, 
   Copy, 
@@ -19,7 +20,9 @@ import {
   Search,
   Settings,
   CheckCircle2,
-  FileCode
+  FileCode,
+  Apple,
+  Server
 } from 'lucide-react';
 
 interface LandingViewProps {
@@ -133,65 +136,70 @@ export const LandingView: React.FC<LandingViewProps> = ({ onNavigate, onOpenKeym
   return (
     <div className="w-full flex flex-col font-sans space-y-16 sm:space-y-24">
       {/* HERO SECTION */}
-      <section className="max-w-4xl mx-auto text-center pt-4 md:pt-10 space-y-6 px-4">
-        {/* Main Title */}
-        <h1 className="font-mono text-3xl sm:text-5xl lg:text-6xl font-extrabold text-text-primary tracking-tight leading-tight max-w-4xl mx-auto">
-          The missing terminal audio player.
-        </h1>
+      <section className="relative overflow-hidden w-full pt-6 md:pt-14 pb-8 md:pb-12 px-4 rounded-2xl border border-hairline-outline/40 bg-canvas-obsidian/60 shadow-inner">
+        {/* Doodled Musical Background with musical symbols, notes & instruments */}
+        <MusicalDoodleBackground />
 
-        <p className="text-sm sm:text-base text-text-muted max-w-2xl mx-auto leading-relaxed">
-          Switching to your audio player should be a keybinding away at most, and more importantly it has to look stunning.
-        </p>
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
+          {/* Main Title */}
+          <h1 className="font-mono text-3xl sm:text-5xl lg:text-6xl font-extrabold text-text-primary tracking-tight leading-tight max-w-4xl mx-auto">
+            The missing terminal audio player.
+          </h1>
 
-        {/* Multi-package manager install widget */}
-        <div className="max-w-xl mx-auto pt-2">
-          <div className="bg-surface-container border border-hairline-outline rounded-xl p-3 shadow-2xl">
-            {/* Package Selector Tabs */}
-            <div className="flex items-center justify-between border-b border-hairline-outline pb-2 px-1 font-mono text-xs">
-              <div className="flex items-center gap-1">
-                {(['curl', 'cargo', 'brew', 'aur', 'nix'] as PkgTab[]).map(pkg => (
-                  <button
-                    key={pkg}
-                    onClick={() => setHeroPkg(pkg)}
-                    className={`px-3 py-1 rounded transition-colors cursor-pointer ${
-                      heroPkg === pkg
-                        ? 'bg-surface-elevated text-text-primary font-bold border border-hairline-outline text-secondary'
-                        : 'text-text-muted hover:text-text-primary'
-                    }`}
-                  >
-                    {pkg}
-                  </button>
-                ))}
-              </div>
-              <div className="text-text-muted text-[11px] hidden sm:inline-block">
-                SHA-256 verified
-              </div>
-            </div>
+          <p className="text-sm sm:text-base text-text-muted max-w-2xl mx-auto leading-relaxed">
+            Switching to your audio player should be a keybinding away at most, and more importantly it has to look stunning.
+          </p>
 
-            {/* Command Display + Copy */}
-            <div className="flex items-center justify-between px-3.5 py-2.5 bg-code-canvas rounded-lg mt-2 font-mono text-xs">
-              <div className="flex items-center gap-2.5 overflow-x-auto">
-                <span className="text-secondary font-bold select-none">$</span>
-                <span className="text-text-primary select-all font-medium truncate">
-                  {PACKAGE_COMMANDS[heroPkg]}
-                </span>
+          {/* Multi-package manager install widget */}
+          <div className="max-w-xl mx-auto pt-2">
+            <div className="bg-surface-container/90 backdrop-blur-md border border-hairline-outline rounded-xl p-3 shadow-2xl">
+              {/* Package Selector Tabs */}
+              <div className="flex items-center justify-between border-b border-hairline-outline pb-2 px-1 font-mono text-xs">
+                <div className="flex items-center gap-1">
+                  {(['curl', 'cargo', 'brew', 'aur', 'nix'] as PkgTab[]).map(pkg => (
+                    <button
+                      key={pkg}
+                      onClick={() => setHeroPkg(pkg)}
+                      className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                        heroPkg === pkg
+                          ? 'bg-surface-elevated text-text-primary font-bold border border-hairline-outline text-secondary'
+                          : 'text-text-muted hover:text-text-primary'
+                      }`}
+                    >
+                      {pkg}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-text-muted text-[11px] hidden sm:inline-block">
+                  SHA-256 verified
+                </div>
               </div>
-              <button
-                onClick={handleCopyHero}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-hairline-outline text-text-muted hover:text-primary-container hover:border-primary-container transition-all text-xs shrink-0 ml-3 cursor-pointer bg-surface-elevated"
-              >
-                {heroCopied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-state-success" />
-                    <span className="text-state-success font-bold">copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>copy</span>
-                  </>
-                )}
-              </button>
+
+              {/* Command Display + Copy */}
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-code-canvas rounded-lg mt-2 font-mono text-xs">
+                <div className="flex items-center gap-2.5 overflow-x-auto">
+                  <span className="text-secondary font-bold select-none">$</span>
+                  <span className="text-text-primary select-all font-medium truncate">
+                    {PACKAGE_COMMANDS[heroPkg]}
+                  </span>
+                </div>
+                <button
+                  onClick={handleCopyHero}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-hairline-outline text-text-muted hover:text-primary-container hover:border-primary-container transition-all text-xs shrink-0 ml-3 cursor-pointer bg-surface-elevated"
+                >
+                  {heroCopied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-state-success" />
+                      <span className="text-state-success font-bold">copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -574,24 +582,24 @@ export const LandingView: React.FC<LandingViewProps> = ({ onNavigate, onOpenKeym
           </div>
 
           {/* Platform Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 font-mono text-xs text-text-muted">
-            <span className="text-text-muted uppercase tracking-wider text-[11px] mr-1">
-              Available on
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 font-mono text-xs">
+            <span className="text-text-muted uppercase tracking-wider text-[11px] mr-1 select-none">
+              Available on:
             </span>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-hairline-outline bg-surface-elevated text-text-primary hover:border-secondary transition-colors">
-              <span className="text-secondary font-bold">Linux</span>
-              <span className="text-hairline-outline">/</span>
-              <span className="text-text-muted text-[11px]">ALSA &amp; PipeWire</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-hairline-outline bg-surface-elevated text-text-primary hover:border-secondary/60 transition-colors">
+              <Terminal className="w-3.5 h-3.5 text-secondary shrink-0" />
+              <span className="font-semibold text-xs">Linux</span>
+              <span className="text-text-disabled text-[10px] hidden sm:inline">(PipeWire / ALSA)</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-hairline-outline bg-surface-elevated text-text-primary hover:border-secondary transition-colors">
-              <span className="text-secondary font-bold">macOS</span>
-              <span className="text-hairline-outline">/</span>
-              <span className="text-text-muted text-[11px]">CoreAudio (ARM/Intel)</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-hairline-outline bg-surface-elevated text-text-primary hover:border-secondary/60 transition-colors">
+              <Apple className="w-3.5 h-3.5 text-text-primary shrink-0" />
+              <span className="font-semibold text-xs">macOS</span>
+              <span className="text-text-disabled text-[10px] hidden sm:inline">(Apple Silicon / Intel)</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-hairline-outline bg-surface-elevated text-text-primary hover:border-secondary transition-colors">
-              <span className="text-secondary font-bold">FreeBSD</span>
-              <span className="text-hairline-outline">/</span>
-              <span className="text-text-muted text-[11px]">OSS Audio</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-hairline-outline bg-surface-elevated text-text-primary hover:border-secondary/60 transition-colors">
+              <Server className="w-3.5 h-3.5 text-accent-coral shrink-0" />
+              <span className="font-semibold text-xs">FreeBSD</span>
+              <span className="text-text-disabled text-[10px] hidden sm:inline">(OSS)</span>
             </div>
           </div>
         </div>

@@ -1,124 +1,204 @@
-import React, { useState } from 'react';
-import { PACKAGE_COMMANDS, BENCHMARKS, KEYBINDINGS, TOML_CONFIG_CODE } from '../data/mockData';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { 
+  ALL_DOCS, 
+  DOCS_BY_ID, 
+  DOCS_BY_CATEGORY, 
+  DOC_CATEGORIES, 
+  DocItem 
+} from '../data/docs';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { 
   Search, 
   Check, 
   Copy, 
   Edit, 
-  Sliders, 
   Layers, 
   Keyboard, 
   ArrowRight, 
   ArrowLeft,
   Terminal,
-  Cpu,
-  Zap,
-  ShieldCheck,
-  Disc3
+  ExternalLink,
+  ChevronRight,
+  ListTree,
+  Github,
+  ArrowUpRight
 } from 'lucide-react';
 
 interface DocsViewProps {
   onOpenSearch: () => void;
   onOpenKeymap: () => void;
+  activeDocId?: string;
   activeSection?: string;
+  onNavigateDoc?: (docId: string, sectionId?: string) => void;
 }
 
-type PkgType = 'curl' | 'cargo' | 'brew' | 'aur' | 'nix';
+const DEFAULT_FALLBACK_DOC: DocItem = {
+  id: 'overview',
+  slug: '/overview/',
+  title: 'Intro',
+  description: 'A terminal music player with background playback, YouTube and Spotify integration, and a focus on discoverability.',
+  order: 1,
+  rawContent: '',
+  content: 'Welcome to the gtm documentation.',
+  headings: [
+    { id: 'overview', text: 'Overview', level: 2 },
+    { id: 'how-it-works', text: 'How it works', level: 2 },
+    { id: 'features', text: 'Features', level: 2 },
+  ],
+  category: 'Getting Started',
+};
 
 export const DocsView: React.FC<DocsViewProps> = ({
   onOpenSearch,
   onOpenKeymap,
-  activeSection = 'overview'
+  activeDocId = 'overview',
+  activeSection,
+  onNavigateDoc
 }) => {
-  const [selectedPkg, setSelectedPkg] = useState<PkgType>('curl');
-  const [bannerPkg, setBannerPkg] = useState<'curl' | 'cargo' | 'brew'>('curl');
-  const [copiedSection, setCopiedSection] = useState<string | null>(null);
-  const [currentSection, setCurrentSection] = useState<string>(activeSection);
+  // Current active doc
+  const [currentDocId, setCurrentDocId] = useState<string>(() => {
+    return DOCS_BY_ID[activeDocId] ? activeDocId : (ALL_DOCS[0]?.id || 'overview');
+  });
 
-  const bannerCommands = {
-    curl: 'curl -fsSL https://getgtm.dev/install.sh | sh',
-    cargo: 'cargo install gtm --locked',
-    brew: 'brew install gtm'
-  };
+  const [activeHeadingId, setActiveHeadingId] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedSection(id);
-    setTimeout(() => setCopiedSection(null), 2000);
-  };
+  // Sync state if prop changes
+  useEffect(() => {
+    if (activeDocId && DOCS_BY_ID[activeDocId] && activeDocId !== currentDocId) {
+      setCurrentDocId(activeDocId);
+    }
+  }, [activeDocId]);
 
-  const scrollToSection = (id: string) => {
-    setCurrentSection(id);
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+  const activeDoc: DocItem = useMemo(() => {
+    return DOCS_BY_ID[currentDocId] || ALL_DOCS[0] || DEFAULT_FALLBACK_DOC;
+  }, [currentDocId]);
+
+  // Current doc index for Prev/Next
+  const currentIndex = useMemo(() => {
+    return ALL_DOCS.findIndex(d => d.id === activeDoc.id);
+  }, [activeDoc?.id]);
+
+  const prevDoc = currentIndex > 0 ? ALL_DOCS[currentIndex - 1] : null;
+  const nextDoc = (currentIndex >= 0 && currentIndex < ALL_DOCS.length - 1) ? ALL_DOCS[currentIndex + 1] : null;
+
+  const handleSelectDoc = (docId: string, sectionId?: string) => {
+    setCurrentDocId(docId);
+    if (onNavigateDoc) {
+      onNavigateDoc(docId, sectionId);
+    }
+    if (sectionId) {
+      setTimeout(() => {
+        const el = document.getElementById(sectionId) || document.getElementById(`_${sectionId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const SECTIONS = [
-    { id: 'overview', title: 'Overview' },
-    { id: 'install', title: 'Installation' },
-    { id: 'architecture', title: 'Architecture' },
-    { id: 'config', title: 'Configuration' },
-    { id: 'benchmarks', title: 'Benchmarks' },
-    { id: 'keybindings', title: 'Keybindings' },
-  ];
+  // Scroll to section when requested
+  useEffect(() => {
+    if (activeSection) {
+      setTimeout(() => {
+        const el = document.getElementById(activeSection) || document.getElementById(`_${activeSection}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+    }
+  }, [activeSection, currentDocId]);
+
+  const scrollToHeading = (id: string) => {
+    setActiveHeadingId(id);
+    const el = document.getElementById(id) || document.getElementById(`_${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleCopyDocUrl = () => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      }).catch(() => {});
+    }
+  };
 
   return (
     <div className="w-full flex flex-col font-sans">
-      {/* Main Container Layout */}
       <div className="max-w-7xl mx-auto flex w-full">
-        {/* LEFT SIDEBAR: Navigation Tree (Desktop) */}
-        <aside className="w-64 shrink-0 border-r border-hairline-outline bg-canvas-obsidian min-h-[calc(100vh-60px)] p-4 hidden lg:block sticky top-14 self-start max-h-[calc(100vh-56px)] overflow-y-auto font-mono text-xs">
-          {/* Search Bar */}
-          <div className="relative mb-6">
+        {/* LEFT SIDEBAR: Document List & Categories (Desktop) */}
+        <aside className="w-72 shrink-0 border-r border-hairline-outline bg-canvas-obsidian p-4 hidden lg:block sticky top-14 self-start max-h-[calc(100vh-56px)] overflow-y-auto font-mono text-xs">
+          {/* Search Trigger */}
+          <div className="relative mb-5">
             <button
               onClick={onOpenSearch}
-              className="w-full flex items-center justify-between pl-8 pr-3 py-1.5 bg-code-canvas border border-hairline-outline hover:border-primary-container rounded text-text-muted text-xs transition-colors cursor-pointer text-left"
+              className="w-full flex items-center justify-between pl-8 pr-3 py-2 bg-code-canvas border border-hairline-outline hover:border-primary-container rounded text-text-muted text-xs transition-colors cursor-pointer text-left"
             >
-              <Search className="w-3.5 h-3.5 absolute left-2.5 text-text-muted" />
-              <span>Search docs...</span>
+              <Search className="w-3.5 h-3.5 absolute left-2.5 text-secondary" />
+              <span>Search {ALL_DOCS.length} topics...</span>
               <kbd className="px-1.5 py-0.5 bg-surface-elevated border border-hairline-outline rounded text-[10px] text-text-muted">
                 /
               </kbd>
             </button>
           </div>
 
-          {/* Navigation Tree Groups */}
+          {/* Categorized Document Navigation Tree */}
           <div className="space-y-6">
-            <div>
-              <div className="text-[11px] font-bold text-text-muted tracking-wider mb-2 uppercase flex items-center gap-2">
-                <Layers className="w-3 h-3 text-secondary" />
-                <span>Documentation</span>
-              </div>
-              <ul className="space-y-1 border-l border-hairline-subtle ml-2 pl-3">
-                {SECTIONS.map((sec) => (
-                  <li key={sec.id}>
-                    <button
-                      onClick={() => scrollToSection(sec.id)}
-                      className={`block w-full text-left py-1 text-xs cursor-pointer transition-colors ${
-                        currentSection === sec.id
-                          ? 'text-primary-container font-bold border-l-2 -ml-[13px] pl-2.5 border-primary-container'
-                          : 'text-text-muted hover:text-text-primary'
-                      }`}
-                    >
-                      {sec.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {DOC_CATEGORIES.map((category) => {
+              const docsInCat = DOCS_BY_CATEGORY[category] || [];
+              return (
+                <div key={category} className="space-y-1.5">
+                  <div className="text-[11px] font-bold text-text-muted tracking-wider uppercase flex items-center gap-1.5 px-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+                    <span>{category}</span>
+                  </div>
 
-            <div>
-              <div className="text-[11px] font-bold text-text-muted tracking-wider mb-2 uppercase flex items-center gap-2">
+                  <ul className="space-y-0.5 border-l border-hairline-subtle ml-2 pl-2">
+                    {docsInCat.map((doc) => {
+                      const isActive = currentDocId === doc.id;
+                      return (
+                        <li key={doc.id}>
+                          <button
+                            onClick={() => handleSelectDoc(doc.id)}
+                            className={`w-full text-left py-1.5 px-2 rounded text-xs cursor-pointer transition-colors flex items-center justify-between gap-1.5 ${
+                              isActive
+                                ? 'bg-surface-elevated text-secondary font-bold border border-secondary/30'
+                                : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated/40'
+                            }`}
+                          >
+                            <span className="truncate">{doc.title}</span>
+                            <span
+                              className={`font-mono text-[10px] shrink-0 ${
+                                isActive ? 'text-secondary font-bold' : 'text-text-disabled'
+                              }`}
+                            >
+                              {String(doc.order).padStart(2, '0')}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
+
+            {/* Quick Tools Box */}
+            <div className="pt-2 border-t border-hairline-outline space-y-2">
+              <div className="text-[11px] font-bold text-text-muted tracking-wider uppercase flex items-center gap-2 px-1">
                 <Keyboard className="w-3 h-3 text-state-warning" />
                 <span>Quick Tools</span>
               </div>
-              <ul className="space-y-1 border-l border-hairline-subtle ml-2 pl-3">
+              <ul className="space-y-1 border-l border-hairline-subtle ml-2 pl-2">
                 <li>
                   <button
                     onClick={onOpenKeymap}
-                    className="block w-full text-left py-1 text-secondary hover:text-primary text-xs cursor-pointer"
+                    className="block w-full text-left py-1 px-2 text-secondary hover:underline text-xs cursor-pointer"
                   >
                     Keybindings Cheatsheet →
                   </button>
@@ -126,9 +206,9 @@ export const DocsView: React.FC<DocsViewProps> = ({
                 <li>
                   <button
                     onClick={onOpenSearch}
-                    className="block w-full text-left py-1 text-text-muted hover:text-text-primary text-xs cursor-pointer"
+                    className="block w-full text-left py-1 px-2 text-text-muted hover:text-text-primary text-xs cursor-pointer"
                   >
-                    Quick Search (/)
+                    Fuzzy Search (/)
                   </button>
                 </li>
               </ul>
@@ -136,424 +216,207 @@ export const DocsView: React.FC<DocsViewProps> = ({
           </div>
         </aside>
 
-        {/* CENTER CANVAS: Main Documentation Article */}
-        <main className="flex-1 min-w-0 px-4 sm:px-8 py-8 max-w-4xl mx-auto space-y-12">
-          {/* Mobile TOC Selector */}
-          <div className="lg:hidden space-y-1.5 pb-4 border-b border-hairline-outline">
-            <label htmlFor="mobile-docs-toc" className="font-mono text-[11px] font-bold text-secondary uppercase tracking-wider block">
-              Jump to Section
-            </label>
+        {/* CENTER CANVAS: Active Doc Article */}
+        <main className="flex-1 min-w-0 px-4 sm:px-8 py-8 max-w-4xl mx-auto space-y-8">
+          {/* Mobile Document Selector Dropdown */}
+          <div className="lg:hidden pb-4 border-b border-hairline-outline">
             <select
-              id="mobile-docs-toc"
-              value={currentSection}
-              onChange={(e) => scrollToSection(e.target.value)}
-              className="w-full bg-surface-container border border-hairline-outline text-text-primary font-mono text-xs rounded px-3 py-2 focus:outline-none focus:border-primary-container cursor-pointer"
+              id="mobile-doc-selector"
+              aria-label="Select documentation page"
+              value={currentDocId}
+              onChange={(e) => handleSelectDoc(e.target.value)}
+              className="w-full bg-surface-container border border-hairline-outline text-text-primary font-mono text-xs rounded px-3 py-2.5 focus:outline-none focus:border-primary-container cursor-pointer"
             >
-              {SECTIONS.map((sec) => (
-                <option key={sec.id} value={sec.id}>
-                  {sec.title}
-                </option>
+              {DOC_CATEGORIES.map((cat) => (
+                <optgroup key={cat} label={cat}>
+                  {(DOCS_BY_CATEGORY[cat] || []).map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {String(doc.order).padStart(2, '0')} - {doc.title}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
 
-          {/* Document Header */}
-          <div className="border-b border-hairline-outline pb-6">
-            <h1 className="font-mono text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mb-2">
-              Documentation
-            </h1>
-            <p className="text-sm sm:text-base text-text-muted max-w-2xl leading-relaxed font-sans">
-              High-fidelity audio playback, local library indexing, and gapless decoding directly inside your terminal — engineered with zero-cost abstractions in Rust.
-            </p>
+          {/* Breadcrumb Header & Top Edit Link */}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <nav className="flex items-center gap-1.5 text-xs font-mono text-text-muted">
+              <button
+                type="button"
+                onClick={() => handleSelectDoc(ALL_DOCS[0]?.id || 'overview')}
+                className="hover:text-text-primary hover:underline transition-colors cursor-pointer"
+                title="Go to documentation overview"
+              >
+                Docs
+              </button>
+              <ChevronRight className="w-3.5 h-3.5 text-hairline-outline shrink-0" />
+              <button
+                type="button"
+                onClick={() => {
+                  const firstInCat = (DOCS_BY_CATEGORY[activeDoc?.category || ''] || [])[0]?.id;
+                  if (firstInCat) handleSelectDoc(firstInCat);
+                }}
+                className="hover:text-text-primary hover:underline transition-colors cursor-pointer"
+                title={`Go to ${activeDoc?.category}`}
+              >
+                {activeDoc?.category}
+              </button>
+              <ChevronRight className="w-3.5 h-3.5 text-hairline-outline shrink-0" />
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="text-secondary font-semibold hover:underline transition-colors cursor-pointer text-left"
+                title="Scroll to top of current page"
+              >
+                {activeDoc?.title}
+              </button>
+            </nav>
+
+            <a
+              href={`https://github.com/prjctimg/gtm.rs/blob/main/content/${activeDoc?.id || 'overview'}.mdx`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-text-muted hover:text-text-primary bg-surface-container hover:bg-surface-elevated border border-hairline-outline rounded transition-colors group cursor-pointer"
+              title={`Edit ${activeDoc?.id || 'overview'}.mdx on GitHub`}
+            >
+              <Github className="w-3.5 h-3.5 text-text-muted group-hover:text-secondary transition-colors" />
+              <span>Edit on GitHub</span>
+              <ArrowUpRight className="w-3 h-3 text-text-disabled group-hover:text-text-primary transition-colors" />
+            </a>
           </div>
 
-          {/* Section: Overview */}
-          <section id="overview" className="space-y-5 scroll-mt-20">
-            <div className="border-b border-hairline-outline pb-2">
-              <h2 className="text-lg font-bold text-text-primary font-mono">
-                Overview
-              </h2>
-            </div>
-            
-            <p className="text-sm text-text-body leading-relaxed">
-              <code className="font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-secondary border border-hairline-outline text-xs">
-                gtm
-              </code>{' '}
-              is a lightweight, terminal-native music player engineered for speed, acoustic transparency, and keyboard-driven workflows. Unlike desktop audio players built on top of web runtimes, gtm connects directly to hardware audio pipelines through lock-free ring buffers.
-            </p>
+          {/* Document Title Header */}
+          <div className="border-b border-hairline-outline pb-6 space-y-2">
+            <h1 className="font-mono text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">
+              {activeDoc?.title}
+            </h1>
+            {activeDoc?.description && (
+              <p className="text-sm sm:text-base text-text-muted leading-relaxed font-sans pt-1">
+                {activeDoc.description}
+              </p>
+            )}
+          </div>
 
-            {/* Architecture Highlights */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="p-4 rounded-lg bg-surface-container border border-hairline-outline space-y-1.5">
-                <div className="flex items-center gap-2 text-secondary font-mono text-xs font-semibold">
-                  <Disc3 className="w-4 h-4" />
-                  <span>Pure Rust Decoder Pipeline</span>
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Leverages Symphonia for bit-perfect decoding of FLAC, ALAC, Opus, MP3, and WAV without external C library dependencies.
-                </p>
-              </div>
+          {/* Rendered MDX Content */}
+          <article className="prose-container space-y-4">
+            <MarkdownRenderer
+              content={activeDoc?.content || ''}
+              onNavigateDoc={(docId, anchorId) => handleSelectDoc(docId, anchorId)}
+            />
+          </article>
 
-              <div className="p-4 rounded-lg bg-surface-container border border-hairline-outline space-y-1.5">
-                <div className="flex items-center gap-2 text-secondary font-mono text-xs font-semibold">
-                  <Zap className="w-4 h-4" />
-                  <span>Lock-Free Audio Ring Buffer</span>
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Dual-engine pre-buffering ensures zero boundary drift (±0 samples) and prevents audio dropouts during heavy terminal resizing.
-                </p>
-              </div>
+          {/* Page Footer Action: Edit on GitHub */}
+          <div className="pt-6 border-t border-hairline-outline flex items-center justify-between font-mono text-xs">
+            <a
+              href={`https://github.com/prjctimg/gtm.rs/blob/main/content/${activeDoc?.id || 'overview'}.mdx`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-text-muted hover:text-text-primary bg-surface-container hover:bg-surface-elevated border border-hairline-outline rounded transition-colors group cursor-pointer"
+              title={`Edit ${activeDoc?.id || 'overview'}.mdx on GitHub`}
+              id="edit-on-github-button"
+            >
+              <Github className="w-3.5 h-3.5 text-text-muted group-hover:text-secondary transition-colors" />
+              <span>Edit on GitHub</span>
+              <ArrowUpRight className="w-3 h-3 text-text-disabled group-hover:text-text-primary transition-colors" />
+            </a>
+          </div>
 
-              <div className="p-4 rounded-lg bg-surface-container border border-hairline-outline space-y-1.5">
-                <div className="flex items-center gap-2 text-secondary font-mono text-xs font-semibold">
-                  <Cpu className="w-4 h-4" />
-                  <span>Lightweight Resource Footprint</span>
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Consistently consumes under 15 MB of resident memory (RSS) even when caching indexed libraries exceeding 40,000 tracks.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-lg bg-surface-container border border-hairline-outline space-y-1.5">
-                <div className="flex items-center gap-2 text-secondary font-mono text-xs font-semibold">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Native Linux &amp; macOS Sinks</span>
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Direct hardware output via PipeWire, ALSA, PulseAudio, or macOS CoreAudio with 192kHz/24-bit passthrough support.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Section: Installation */}
-          <section id="install" className="space-y-4 scroll-mt-20">
-            <div className="border-b border-hairline-outline pb-2">
-              <h2 className="text-lg font-bold text-text-primary font-mono">
-                Installation
-              </h2>
-            </div>
-            
-            <p className="text-sm text-text-body">
-              Select your package manager. Pre-built release binaries are signed and available for all major Linux distributions and macOS.
-            </p>
-
-            {/* Package Tabs */}
-            <div className="flex items-center gap-1.5 border-b border-hairline-outline pb-2 font-mono text-xs overflow-x-auto">
-              {(['curl', 'cargo', 'brew', 'aur', 'nix'] as PkgType[]).map((pkg) => (
-                <button
-                  key={pkg}
-                  onClick={() => setSelectedPkg(pkg)}
-                  className={`px-3 py-1 rounded transition-colors cursor-pointer text-xs ${
-                    selectedPkg === pkg
-                      ? 'bg-surface-elevated text-secondary border border-hairline-outline font-bold'
-                      : 'text-text-muted hover:text-text-primary border border-transparent'
-                  }`}
-                >
-                  {pkg === 'curl' ? 'curl (default)' : pkg}
-                </button>
-              ))}
-            </div>
-
-            {/* Command Box */}
-            <div className="bg-code-canvas border border-hairline-outline rounded-lg overflow-hidden font-mono text-xs">
-              <div className="flex items-center justify-between px-3.5 py-2 bg-surface-container border-b border-hairline-outline">
-                <span className="text-text-muted text-[11px]">Command</span>
-                <button
-                  onClick={() => handleCopy(PACKAGE_COMMANDS[selectedPkg], 'pkg-docs')}
-                  className="flex items-center gap-1 text-text-muted hover:text-text-primary transition-colors cursor-pointer text-[11px]"
-                >
-                  {copiedSection === 'pkg-docs' ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-state-success" />
-                      <span className="text-state-success">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="p-4 flex items-center gap-2 select-all overflow-x-auto">
-                <span className="text-secondary font-bold select-none">$</span>
-                <span className="text-text-primary">{PACKAGE_COMMANDS[selectedPkg]}</span>
-              </div>
-            </div>
-
-            {/* Verification Tip */}
-            <div className="p-3 bg-surface-container-low border border-hairline-outline rounded-lg font-mono text-xs text-text-muted space-y-1">
-              <div className="text-text-primary font-semibold">Verification:</div>
-              <div>Run <code className="text-secondary">gtm --check-audio</code> to test output driver initialization and codec handshakes.</div>
-            </div>
-          </section>
-
-          {/* Section: Architecture */}
-          <section id="architecture" className="space-y-4 scroll-mt-20">
-            <div className="border-b border-hairline-outline pb-2">
-              <h2 className="text-lg font-bold text-text-primary font-mono">
-                Architecture
-              </h2>
-            </div>
-            
-            <p className="text-sm text-text-body leading-relaxed">
-              Audio decoding runs isolated on atomic worker threads, communicating with the Ratatui render loop via lock-free channels. This guarantees that UI operations never cause audio buffer starvation.
-            </p>
-
-            {/* Responsive Pipeline Diagram */}
-            <div className="p-4 sm:p-6 bg-surface-container border border-hairline-outline rounded-lg space-y-4 font-mono text-xs">
-              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                Thread Topology &amp; Audio Pipeline
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-3 bg-code-canvas border border-hairline-outline rounded space-y-1">
-                  <div className="text-secondary font-bold">1. Terminal UI</div>
-                  <div className="text-[11px] text-text-muted">Ratatui 60 FPS loop</div>
-                  <div className="text-[11px] text-text-muted">Non-blocking keyboard I/O</div>
-                </div>
-
-                <div className="p-3 bg-code-canvas border border-hairline-outline rounded space-y-1">
-                  <div className="text-primary-container font-bold">2. Playback Engine</div>
-                  <div className="text-[11px] text-text-muted">Symphonia decoding</div>
-                  <div className="text-[11px] text-text-muted">Lookahead track buffer</div>
-                </div>
-
-                <div className="p-3 bg-code-canvas border border-hairline-outline rounded space-y-1">
-                  <div className="text-state-success font-bold">3. Hardware Sink</div>
-                  <div className="text-[11px] text-text-muted">Lock-free ringbuffer</div>
-                  <div className="text-[11px] text-text-muted">PipeWire / CoreAudio sink</div>
-                </div>
-              </div>
-
-              <div className="pt-2 text-[11px] text-text-muted border-t border-hairline-subtle flex flex-wrap items-center justify-between gap-2">
-                <span>Inter-thread IPC: crossbeam SPSC</span>
-                <span>Buffer swap latency: &lt; 20µs</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Section: Configuration */}
-          <section id="config" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between border-b border-hairline-outline pb-2">
-              <h2 className="text-lg font-bold text-text-primary font-mono">
-                Configuration
-              </h2>
-              <span className="font-mono text-xs text-text-muted bg-surface-elevated px-2 py-0.5 rounded border border-hairline-outline">
-                ~/.config/gtm/config.toml
-              </span>
-            </div>
-
-            <p className="text-sm text-text-body">
-              Configuration is stored in standard TOML format. The player hot-reloads configuration changes automatically without interrupting active playback.
-            </p>
-
-            <div className="bg-code-canvas border border-hairline-outline rounded-lg overflow-hidden font-mono text-xs">
-              <div className="flex justify-between items-center px-3.5 py-2 bg-surface-container border-b border-hairline-outline text-[11px] text-text-muted">
-                <span>config.toml</span>
-                <button
-                  onClick={() => handleCopy(TOML_CONFIG_CODE, 'toml-copy')}
-                  className="flex items-center gap-1 hover:text-text-primary transition-colors cursor-pointer"
-                >
-                  {copiedSection === 'toml-copy' ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-state-success" />
-                      <span className="text-state-success">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy TOML</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <pre className="p-4 text-text-body leading-relaxed overflow-x-auto text-[12px]">
-                {TOML_CONFIG_CODE}
-              </pre>
-            </div>
-          </section>
-
-          {/* Section: Benchmarks */}
-          <section id="benchmarks" className="space-y-4 scroll-mt-20">
-            <div className="border-b border-hairline-outline pb-2">
-              <h2 className="text-lg font-bold text-text-primary font-mono">
-                Benchmarks
-              </h2>
-            </div>
-
-            <p className="text-sm text-text-body">
-              Independent measurements recorded on Linux 6.8 (x86_64) during continuous 96kHz/24-bit FLAC playback over 12 hours.
-            </p>
-
-            <div className="border border-hairline-outline bg-surface-container rounded-lg overflow-x-auto">
-              <table className="w-full min-w-[500px] text-left font-mono text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-hairline-outline bg-surface-elevated text-text-muted uppercase text-[11px]">
-                    <th className="py-2.5 px-3">Player</th>
-                    <th className="py-2.5 px-3">Resident Memory (RSS)</th>
-                    <th className="py-2.5 px-3">Startup Cold</th>
-                    <th className="py-2.5 px-3">Gapless Accuracy</th>
-                    <th className="py-2.5 px-3 text-right">CPU</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-hairline-subtle text-text-body">
-                  {BENCHMARKS.map((row, idx) => (
-                    <tr 
-                      key={idx} 
-                      className={row.isHero ? "bg-surface-elevated/50 font-bold text-text-primary" : "hover:bg-surface-elevated/20 transition-colors"}
-                    >
-                      <td className="py-2.5 px-3 flex items-center gap-2">
-                        {row.isHero && <span className="w-1.5 h-1.5 rounded-full bg-secondary" />}
-                        <span className={row.isHero ? "text-secondary" : ""}>{row.player}</span>
-                      </td>
-                      <td className="py-2.5 px-3">{row.rss}</td>
-                      <td className="py-2.5 px-3">{row.coldBoot}</td>
-                      <td className="py-2.5 px-3">{row.accuracy}</td>
-                      <td className="py-2.5 px-3 text-right">{row.cpu}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Section: Keybindings */}
-          <section id="keybindings" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between border-b border-hairline-outline pb-2">
-              <h2 className="text-lg font-bold text-text-primary font-mono">
-                Keybindings
-              </h2>
+          {/* Pagination Controls (Prev / Next) */}
+          <div className="border-t border-hairline-outline pt-8 mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs">
+            {prevDoc ? (
               <button
-                onClick={onOpenKeymap}
-                className="font-mono text-xs text-secondary hover:text-primary transition-colors cursor-pointer"
+                onClick={() => handleSelectDoc(prevDoc.id)}
+                className="p-4 rounded-lg border border-hairline-outline bg-surface-container hover:bg-surface-elevated text-left transition-colors cursor-pointer group flex flex-col justify-between"
               >
-                Cheatsheet Modal →
+                <div className="text-[11px] text-text-muted flex items-center gap-1 mb-1">
+                  <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+                  <span>Previous</span>
+                </div>
+                <div className="text-text-primary font-bold text-sm truncate">
+                  {prevDoc.title}
+                </div>
               </button>
-            </div>
+            ) : <div />}
 
-            <p className="text-sm text-text-body">
-              Default keyboard shortcuts for player control and library navigation. All shortcuts can be remapped in <code className="font-mono text-xs text-secondary">config.toml</code>.
-            </p>
-
-            <div className="border border-hairline-outline bg-surface-container rounded-lg overflow-hidden">
-              <table className="w-full text-left font-mono text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-hairline-outline bg-surface-elevated text-text-muted uppercase text-[11px]">
-                    <th className="py-2 px-3">Key</th>
-                    <th className="py-2 px-3">Action</th>
-                    <th className="py-2 px-3 text-right">Scope</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-hairline-subtle text-text-body">
-                  {KEYBINDINGS.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-surface-elevated/20 transition-colors">
-                      <td className="py-2 px-3 font-semibold text-secondary">
-                        <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-hairline-outline text-xs">
-                          {item.key}
-                        </kbd>
-                      </td>
-                      <td className="py-2 px-3 text-text-primary">{item.action}</td>
-                      <td className="py-2 px-3 text-right text-text-muted">{item.scope}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Section Navigation Footer */}
-          <div className="border-t border-hairline-outline pt-6 flex items-center justify-between gap-4 font-mono text-xs">
-            <button
-              onClick={() => scrollToSection('overview')}
-              className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to Overview
-            </button>
-            <button
-              onClick={onOpenKeymap}
-              className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              Open Cheatsheet <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            {nextDoc ? (
+              <button
+                onClick={() => handleSelectDoc(nextDoc.id)}
+                className="p-4 rounded-lg border border-hairline-outline bg-surface-container hover:bg-surface-elevated text-right transition-colors cursor-pointer group flex flex-col justify-between items-end sm:col-start-2"
+              >
+                <div className="text-[11px] text-text-muted flex items-center gap-1 mb-1">
+                  <span>Next</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+                <div className="text-text-primary font-bold text-sm truncate">
+                  {nextDoc.title}
+                </div>
+              </button>
+            ) : <div />}
           </div>
         </main>
 
-        {/* RIGHT SIDEBAR: On This Page TOC (Desktop) */}
-        <aside className="w-56 shrink-0 border-l border-hairline-outline bg-canvas-obsidian p-6 hidden xl:block sticky top-14 self-start max-h-[calc(100vh-56px)] overflow-y-auto font-mono text-xs">
-          <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-3">
-            On this page
+        {/* RIGHT SIDEBAR: On This Page Table of Contents (Desktop) */}
+        <aside className="w-60 shrink-0 border-l border-hairline-outline bg-canvas-obsidian p-6 hidden xl:block sticky top-14 self-start max-h-[calc(100vh-56px)] overflow-y-auto font-mono text-xs">
+          <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <ListTree className="w-3.5 h-3.5 text-secondary" />
+            <span>On this page</span>
           </div>
-          <ul className="space-y-2 border-l border-hairline-outline pl-3">
-            {SECTIONS.map((sec) => (
-              <li key={sec.id}>
-                <button
-                  onClick={() => scrollToSection(sec.id)}
-                  className={`block text-left transition-colors cursor-pointer text-xs ${
-                    currentSection === sec.id
-                      ? 'text-primary-container font-semibold'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                >
-                  {sec.title}
-                </button>
-              </li>
-            ))}
-          </ul>
 
-          <div className="mt-8 pt-6 border-t border-hairline-outline space-y-3">
+          {(activeDoc?.headings || []).length === 0 ? (
+            <p className="text-text-muted text-[11px] italic">No sub-sections</p>
+          ) : (
+            <ul className="space-y-1.5 border-l border-hairline-outline pl-3">
+              {(activeDoc?.headings || []).map((h) => (
+                <li key={h.id} style={{ paddingLeft: h.level === 3 ? '8px' : '0px' }}>
+                  <button
+                    onClick={() => scrollToHeading(h.id)}
+                    className={`block text-left transition-colors cursor-pointer text-xs truncate max-w-[180px] ${
+                      activeHeadingId === h.id
+                        ? 'text-secondary font-bold'
+                        : 'text-text-muted hover:text-text-primary'
+                    }`}
+                    title={h.text}
+                  >
+                    {h.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-8 pt-6 border-t border-hairline-outline space-y-2.5">
             <a
-              href="https://github.com/prjctimg/gtm.rs"
+              href={`https://github.com/prjctimg/gtm.rs/blob/main/content/${activeDoc?.id || 'overview'}.mdx`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors text-xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-text-muted hover:text-text-primary bg-surface-container hover:bg-surface-elevated border border-hairline-outline rounded transition-colors group cursor-pointer w-full justify-center"
+              title={`Edit ${activeDoc?.id || 'overview'}.mdx on GitHub`}
             >
-              <Edit className="w-3.5 h-3.5" />
+              <Github className="w-3.5 h-3.5 text-text-muted group-hover:text-secondary transition-colors" />
               <span>Edit on GitHub</span>
+              <ArrowUpRight className="w-3 h-3 text-text-disabled group-hover:text-text-primary transition-colors" />
             </a>
-          </div>
-        </aside>
-      </div>
 
-      {/* Persistent Install Footer */}
-      <section id="install-cta" className="w-full bg-surface-container-low border-t border-hairline-outline px-6 py-10 mt-12">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h3 className="text-xl md:text-2xl font-mono font-bold tracking-tight text-text-primary mb-1">
-              Ready to start listening?
-            </h3>
-            <p className="text-xs sm:text-sm text-text-muted font-mono">
-              Lightweight binary, zero runtime overhead, bit-perfect gapless audio in your terminal.
-            </p>
-          </div>
-
-          <div className="flex items-stretch bg-code-canvas border border-hairline-outline rounded-md overflow-hidden shrink-0">
-            <div className="px-4 py-2.5 font-mono text-xs text-text-primary flex items-center gap-2 select-all">
-              <span className="text-secondary font-bold select-none">$</span>
-              <span>{bannerCommands.curl}</span>
-            </div>
             <button
-              onClick={() => handleCopy(bannerCommands.curl, 'banner-install')}
-              className="px-3.5 py-2.5 bg-primary-container hover:opacity-90 text-canvas-obsidian font-mono text-xs font-bold transition-opacity flex items-center gap-1.5 cursor-pointer shrink-0"
+              onClick={handleCopyDocUrl}
+              className="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors text-xs cursor-pointer w-full text-left"
             >
-              {copiedSection === 'banner-install' ? (
+              {copiedLink ? (
                 <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Copied</span>
+                  <Check className="w-3.5 h-3.5 text-state-success" />
+                  <span className="text-state-success">Link Copied!</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5" />
-                  <span>Copy</span>
+                  <span>Copy Page URL</span>
                 </>
               )}
             </button>
           </div>
-        </div>
-      </section>
+        </aside>
+      </div>
     </div>
   );
 };
